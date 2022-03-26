@@ -1,5 +1,6 @@
 package com.armzilla.ha.hue;
 
+import com.armzilla.ha.Logging;
 import com.armzilla.ha.api.hue.DeviceResponse;
 import com.armzilla.ha.api.hue.DeviceState;
 import com.armzilla.ha.api.hue.HueApiResponse;
@@ -17,7 +18,6 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
-import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -43,7 +43,7 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api")
 public class HueMulator {
-    private static final Logger log = Logger.getLogger(HueMulator.class);
+    private static final Logging.Log log = Logging.forClass(HueMulator.class);
     private static final String INTENSITY_PERCENT = "${intensity.percent}";
     private static final String INTENSITY_BYTE = "${intensity.byte}";
     @Autowired
@@ -65,7 +65,7 @@ public class HueMulator {
 
     @RequestMapping(value = "/{userId}/lights", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<Map<String, String>> getUpnpConfiguration(@PathVariable(value = "userId") String userId, HttpServletRequest request) {
-        log.info("hue lights list requested: " + userId + " from " + request.getRemoteAddr() + request.getLocalPort());
+        info("hue lights list requested: " + userId + " from " + request.getRemoteAddr() + request.getLocalPort());
 
         int pageNumber = request.getLocalPort()-portBase;
         Page<DeviceDescriptor> deviceList = repository.findByDeviceType("switch", new PageRequest(pageNumber, 25));
@@ -78,13 +78,13 @@ public class HueMulator {
 
     @RequestMapping(value = "/*", method = RequestMethod.POST, produces = "application/json")
     public ResponseEntity<String> postAPI(HttpServletRequest request) {
-        log.info("registered device: " + request.toString());
+        info("registered device: " + request.toString());
         return new ResponseEntity<String>("[{\"success\":{\"username\":\"lights\"}}]", HttpStatus.OK);
     }
 
     @RequestMapping(value = "/{userId}", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<HueApiResponse> getApi(@PathVariable(value = "userId") String userId, HttpServletRequest request) {
-        log.info("hue api root requested: " + userId + " from " + request.getRemoteAddr());
+        info("hue api root requested: " + userId + " from " + request.getRemoteAddr());
         int pageNumber = request.getLocalPort()-portBase;
         Page<DeviceDescriptor> descriptorList = repository.findByDeviceType("switch", new PageRequest(pageNumber, 25));
         if (descriptorList == null) {
@@ -107,12 +107,12 @@ public class HueMulator {
 
     @RequestMapping(value = "/{userId}/lights/{lightId}", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<DeviceResponse> getLigth(@PathVariable(value = "lightId") String lightId, @PathVariable(value = "userId") String userId, HttpServletRequest request) {
-        log.info("hue light requested: " + lightId + " from " + request.getRemoteAddr());
+        info("hue light requested: " + lightId + " from " + request.getRemoteAddr());
         DeviceDescriptor device = repository.findOne(lightId);
         if (device == null) {
             return new ResponseEntity<>(null, null, HttpStatus.NOT_FOUND);
         } else {
-            log.info("found device named: " + device.getName());
+            info("found device named: " + device.getName());
         }
         DeviceResponse lightResponse = DeviceResponse.createResponse(device.getName(), device.getId());
 
@@ -128,14 +128,14 @@ public class HueMulator {
          * strangely enough the Echo sends a content type of application/x-www-form-urlencoded even though
          * it sends a json object
          */
-        log.info("hue state change requested: " + userId + " from " + request.getRemoteAddr());
-        log.info("hue stage change body: " + requestString );
+        info("hue state change requested: " + userId + " from " + request.getRemoteAddr());
+        info("hue stage change body: " + requestString );
 
         DeviceState state = null;
         try {
             state = mapper.readValue(requestString, DeviceState.class);
         } catch (IOException e) {
-            log.info("object mapper barfed on input", e);
+            error("object mapper barfed on input", e);
             return new ResponseEntity<>(null, null, HttpStatus.BAD_REQUEST);
         }
 
@@ -206,20 +206,22 @@ public class HueMulator {
             putRequest.setEntity(requestBody);
             request = putRequest;
         }
-        log.info("Making outbound call: " + request);
+        info("Making outbound call: " + request);
         try {
             HttpResponse response = httpClient.execute(request);
             EntityUtils.consume(response.getEntity()); //close out inputstream ignore content
             int httpResponseCode = response.getStatusLine().getStatusCode();
-            log.info("GET on URL responded: " + httpResponseCode);
+            info("GET on URL responded: " + httpResponseCode);
             if(httpResponseCode >= 200 && httpResponseCode < 300){ //had complaints that some apps do not respond back with pure 200
                 return true;
             }
         } catch (IOException e) {
-            log.error("Error calling out to HA gateway", e);
+            error("Error calling out to HA gateway", e);
         }
         return false;
 
     }
 
+    private static void info(String message)               { log.info(message); }
+    private static void error(String message, Throwable t) { log.error(message,t); }
 }

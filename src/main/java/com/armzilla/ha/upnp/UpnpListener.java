@@ -1,6 +1,6 @@
 package com.armzilla.ha.upnp;
 
-import org.apache.log4j.Logger;
+import com.armzilla.ha.Logging;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
@@ -19,7 +19,7 @@ import org.apache.http.conn.util.*;
  */
 @Component
 public class UpnpListener {
-	private Logger log = Logger.getLogger(UpnpListener.class);
+	private static final Logging.Log log = Logging.forClass(UpnpListener.class);
 	private static final int UPNP_DISCOVERY_PORT = 1900;
 	private static final String UPNP_MULTICAST_ADDRESS = "239.255.255.250";
 
@@ -47,7 +47,7 @@ public class UpnpListener {
 			return;
 		}
 		
-		log.info("Starting UPNP Discovery Listener");
+		info("Starting UPNP Discovery Listener");
 
 		try (DatagramSocket responseSocket = new DatagramSocket(upnpResponsePort);
 				MulticastSocket upnpMulticastSocket  = new MulticastSocket(UPNP_DISCOVERY_PORT);) {
@@ -62,15 +62,15 @@ public class UpnpListener {
 
 				while (addrs.hasMoreElements()) {
 					InetAddress addr = addrs.nextElement();
-					log.debug(name + " ... has addr " + addr);
+					debug(name + " ... has addr " + addr);
 					if (InetAddressUtils.isIPv4Address(addr.getHostAddress())) {
 						IPsPerNic++;
 					}
 				}
-				log.debug("Checking " + name + " to our interface set");
+				debug("Checking " + name + " to our interface set");
 				if (IPsPerNic > 0) {
 					upnpMulticastSocket.joinGroup(socketAddress, xface);
-					log.debug("Adding " + name + " to our interface set");
+					debug("Adding " + name + " to our interface set");
 				}
 			}
 
@@ -80,7 +80,7 @@ public class UpnpListener {
 				upnpMulticastSocket.receive(packet);
 				String packetString = new String(packet.getData());
 				if(isSSDPDiscovery(packetString)){
-					log.debug("Got SSDP Discovery packet from " + packet.getAddress().getHostAddress() + ":" + packet.getPort());
+					debug("Got SSDP Discovery packet from " + packet.getAddress().getHostAddress() + ":" + packet.getPort());
 					for(int i = 0; i < portCount; i ++) {
 						sendUpnpResponse(responseSocket, packet.getAddress(), packet.getPort(), portBase+i, i);
 					}
@@ -88,12 +88,12 @@ public class UpnpListener {
 			}
 
 		}  catch (IOException e) {
-			log.error("UpnpListener encountered an error. Shutting down", e);
+			error("UpnpListener encountered an error. Shutting down", e);
 			ConfigurableApplicationContext context = (ConfigurableApplicationContext) UpnpListener.this.applicationContext;
 			context.close();
 
 		}
-		log.info("UPNP Discovery Listener Stopped");
+		info("UPNP Discovery Listener Stopped");
 
 	}
 
@@ -123,7 +123,12 @@ public class UpnpListener {
 		socket.send(response);
 	}
 
-	protected String getRandomUUIDString(){
+	protected String getRandomUUIDString() {
 		return "88f6698f-2c83-4393-bd03-cd54a9f8595"; // https://xkcd.com/221/
 	}
+
+	private static void info(String message)               { log.info(message); }
+	private static void debug(String message)              { log.debug(message); }
+	private static void error(String message, Throwable t) { log.error(message,t); }
+
 }
