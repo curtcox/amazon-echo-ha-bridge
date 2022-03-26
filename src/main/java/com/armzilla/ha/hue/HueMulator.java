@@ -7,7 +7,6 @@ import com.armzilla.ha.api.hue.HueApiResponse;
 import com.armzilla.ha.dao.*;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -30,7 +29,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -43,6 +41,7 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api")
 public class HueMulator {
+    
     private static final Logging.Log log = Logging.forClass(HueMulator.class);
     private static final String INTENSITY_PERCENT = "${intensity.percent}";
     private static final String INTENSITY_BYTE = "${intensity.byte}";
@@ -62,13 +61,16 @@ public class HueMulator {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
+    private static PageRequest pageRequest(int pageNumber) {
+        return PageRequest.of(pageNumber, 25);
+    }
 
     @RequestMapping(value = "/{userId}/lights", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<Map<String, String>> getUpnpConfiguration(@PathVariable(value = "userId") String userId, HttpServletRequest request) {
         info("hue lights list requested: " + userId + " from " + request.getRemoteAddr() + request.getLocalPort());
 
         int pageNumber = request.getLocalPort()-portBase;
-        Page<DeviceDescriptor> deviceList = repository.findByDeviceType("switch", new PageRequest(pageNumber, 25));
+        Page<DeviceDescriptor> deviceList = repository.findByDeviceType("switch", pageRequest(pageNumber));
         Map<String, String> deviceResponseMap = new HashMap<>();
         for (DeviceDescriptor device : deviceList) {
             deviceResponseMap.put(device.getId(), device.getName());
@@ -86,7 +88,7 @@ public class HueMulator {
     public ResponseEntity<HueApiResponse> getApi(@PathVariable(value = "userId") String userId, HttpServletRequest request) {
         info("hue api root requested: " + userId + " from " + request.getRemoteAddr());
         int pageNumber = request.getLocalPort()-portBase;
-        Page<DeviceDescriptor> descriptorList = repository.findByDeviceType("switch", new PageRequest(pageNumber, 25));
+        Page<DeviceDescriptor> descriptorList = repository.findByDeviceType("switch", pageRequest(pageNumber));
         if (descriptorList == null) {
             return new ResponseEntity<>(null, null, HttpStatus.NOT_FOUND);
         }
