@@ -3,8 +3,8 @@ package com.armzilla.ha;
 import org.apache.catalina.connector.Connector;
 import org.apache.coyote.http11.Http11NioProtocol;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
-import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
+import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
@@ -19,11 +19,11 @@ public class TomcatConnectorBean {
     @Value("${emulator.portcount}")
     private int portCount;
     @Bean
-    public EmbeddedServletContainerFactory servletContainer() {
-        TomcatEmbeddedServletContainerFactory tomcat = null;
+    public ServletWebServerFactory servletContainer() {
+        TomcatServletWebServerFactory tomcat = null;
         for(int i = 0; i < portCount; i ++) {
             if(tomcat == null){
-                tomcat = new TomcatEmbeddedServletContainerFactory(portBase + i);
+                tomcat = new TomcatServletWebServerFactory(portBase + i);
             }else{
                 tomcat.addAdditionalTomcatConnectors(createConnector(portBase + i));
             }
