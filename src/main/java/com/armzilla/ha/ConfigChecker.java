@@ -14,9 +14,12 @@ public class ConfigChecker implements InitializingBean {
     private String responseAddress;
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         if(responseAddress == null || responseAddress.isEmpty() ){
-            throw new IllegalArgumentException("please provide the IP(v4) address of the interface you want the bridge to listen on using --upnp.config.address=<ipadress>");
+            throw new IllegalArgumentException(
+                "Please provide the IP(v4) address of the interface you want the bridge to listen on using " +
+                " --upnp.config.address=<ipadress>"
+            );
         }
     }
 }
